@@ -438,7 +438,126 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                 }
             }
         }
-        else if (pcrd->params.eGeom == epullgCYLDENS)
+        comm->dbuf_cyl[c*stride+0] = wmass;
+        comm->dbuf_cyl[c*stride+1] = wwmass;
+        comm->dbuf_cyl[c*stride+2] = sum_a;
+        comm->dbuf_cyl[c*stride+3] = radf_fac0[XX];
+        comm->dbuf_cyl[c*stride+4] = radf_fac0[YY];
+        comm->dbuf_cyl[c*stride+5] = radf_fac0[ZZ];
+        comm->dbuf_cyl[c*stride+6] = radf_fac1[XX];
+        comm->dbuf_cyl[c*stride+7] = radf_fac1[YY];
+        comm->dbuf_cyl[c*stride+8] = radf_fac1[ZZ];
+    }
+
+    if (cr != nullptr && PAR(cr))
+    {
+        /* Sum the contributions over the ranks */
+        pull_reduce_double(cr, comm, pull->ncoord*stride, comm->dbuf_cyl);
+    }
+
+    for (c = 0; c < pull->ncoord; c++)
+    {
+        pull_coord_work_t *pcrd;
+
+        pcrd  = &pull->coord[c];
+
+        if (pcrd->params.eGeom == epullgCYL)
+        {
+            pull_group_work_t *pdyna, *pgrp;
+            double             wmass, wwmass, dist;
+
+            pdyna = &pull->dyna[c];
+            pgrp  = &pull->group[pcrd->params.group[1]];
+
+            wmass          = comm->dbuf_cyl[c*stride+0];
+            wwmass         = comm->dbuf_cyl[c*stride+1];
+            pdyna->mwscale = 1.0/wmass;
+            /* Cylinder pulling can't be used with constraints, but we set
+             * wscale and invtm anyhow, in case someone would like to use them.
+             */
+            pdyna->wscale  = wmass/wwmass;
+            pdyna->invtm   = wwmass/(wmass*wmass);
+
+            /* We store the deviation of the COM from the reference location
+             * used above, since we need it when we apply the radial forces
+             * to the atoms in the cylinder group.
+             */
+            pcrd->cyl_dev  = 0;
+            for (m = 0; m < DIM; m++)
+            {
+                g_x[m]         = pgrp->x[m] - pcrd->vec[m]*pcrd->value_ref;
+                dist           = -pcrd->vec[m]*comm->dbuf_cyl[c*stride+2]*pdyna->mwscale;
+                pdyna->x[m]    = g_x[m] - dist;
+                pcrd->cyl_dev += dist;
+            }
+            /* Now we know the exact COM of the cylinder reference group,
+             * we can determine the radial force factor (ffrad) that when
+             * multiplied with the axial pull force will give the radial
+             * force on the pulled (non-cylinder) group.
+             */
+            for (m = 0; m < DIM; m++)
+            {
+                pcrd->ffrad[m] = (comm->dbuf_cyl[c*stride+6+m] +
+                                  comm->dbuf_cyl[c*stride+3+m]*pcrd->cyl_dev)/wmass;
+            }
+
+            if (debug)
+            {
+                fprintf(debug, "Pull cylinder group %d:%8.3f%8.3f%8.3f m:%8.3f\n",
+                        c, pdyna->x[0], pdyna->x[1],
+                        pdyna->x[2], 1.0/pdyna->invtm);
+                fprintf(debug, "ffrad %8.3f %8.3f %8.3f\n",
+                        pcrd->ffrad[XX], pcrd->ffrad[YY], pcrd->ffrad[ZZ]);
+            }
+        }
+    }
+}
+
+
+static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
+                             t_pbc *pbc, double t, rvec *x)
+{
+    /* The size and stride per coord for the reduction buffer */
+    const int       stride = 9;
+    int             c, i, ii, m, start, end;
+    rvec            g_x, dx, dir;
+    double          inv_cyl_r2;
+    pull_comm_t    *comm;
+    gmx_ga2la_t    *ga2la = nullptr;
+
+    comm = &pull->comm;
+
+    if (comm->dbuf_cyl == nullptr)
+    {
+        snew(comm->dbuf_cyl, pull->ncoord*stride);
+    }
+
+    if (cr && DOMAINDECOMP(cr))
+    {
+        ga2la = cr->dd->ga2la;
+    }
+
+    start = 0;
+    end   = md->homenr;
+
+    inv_cyl_r2 = 1.0/gmx::square(pull->params.cylinder_r);
+
+    /* loop over all groups to make a reference group for each*/
+    for (c = 0; c < pull->ncoord; c++)
+    {
+        pull_coord_work_t *pcrd;
+        double             sum_a, wmass, wwmass;
+        dvec               radf_fac0, radf_fac1;
+
+        pcrd   = &pull->coord[c];
+
+        sum_a  = 0;
+        wmass  = 0;
+        wwmass = 0;
+        clear_dvec(radf_fac0);
+        clear_dvec(radf_fac1);
+
+        if (pcrd->params.eGeom == epullgCYLDENS)
         {
             pull_group_work_t *pref, *pgrp, *pdyna;
 
@@ -545,56 +664,7 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         pcrd  = &pull->coord[c];
 
-        if (pcrd->params.eGeom == epullgCYL)
-        {
-            pull_group_work_t *pdyna, *pgrp;
-            double             wmass, wwmass, dist;
-
-            pdyna = &pull->dyna[c];
-            pgrp  = &pull->group[pcrd->params.group[1]];
-
-            wmass          = comm->dbuf_cyl[c*stride+0];
-            wwmass         = comm->dbuf_cyl[c*stride+1];
-            pdyna->mwscale = 1.0/wmass;
-            /* Cylinder pulling can't be used with constraints, but we set
-             * wscale and invtm anyhow, in case someone would like to use them.
-             */
-            pdyna->wscale  = wmass/wwmass;
-            pdyna->invtm   = wwmass/(wmass*wmass);
-
-            /* We store the deviation of the COM from the reference location
-             * used above, since we need it when we apply the radial forces
-             * to the atoms in the cylinder group.
-             */
-            pcrd->cyl_dev  = 0;
-            for (m = 0; m < DIM; m++)
-            {
-                g_x[m]         = pgrp->x[m] - pcrd->vec[m]*pcrd->value_ref;
-                dist           = -pcrd->vec[m]*comm->dbuf_cyl[c*stride+2]*pdyna->mwscale;
-                pdyna->x[m]    = g_x[m] - dist;
-                pcrd->cyl_dev += dist;
-            }
-            /* Now we know the exact COM of the cylinder reference group,
-             * we can determine the radial force factor (ffrad) that when
-             * multiplied with the axial pull force will give the radial
-             * force on the pulled (non-cylinder) group.
-             */
-            for (m = 0; m < DIM; m++)
-            {
-                pcrd->ffrad[m] = (comm->dbuf_cyl[c*stride+6+m] +
-                                  comm->dbuf_cyl[c*stride+3+m]*pcrd->cyl_dev)/wmass;
-            }
-
-            if (debug)
-            {
-                fprintf(debug, "Pull cylinder group %d:%8.3f%8.3f%8.3f m:%8.3f\n",
-                        c, pdyna->x[0], pdyna->x[1],
-                        pdyna->x[2], 1.0/pdyna->invtm);
-                fprintf(debug, "ffrad %8.3f %8.3f %8.3f\n",
-                        pcrd->ffrad[XX], pcrd->ffrad[YY], pcrd->ffrad[ZZ]);
-            }
-        }
-        else if (pcrd->params.eGeom == epullgCYLDENS)
+        if (pcrd->params.eGeom == epullgCYLDENS)
         {
             pull_group_work_t *pdyna, *pgrp;
             double             wmass, wwmass, dist;
@@ -1028,6 +1098,8 @@ void pull_calc_coms(t_commrec *cr,
     {
         /* Calculate the COMs for the cyclinder reference groups */
         make_cyl_refgrps(cr, pull, md, pbc, t, x);
+
+        make_cyldens_grps(cr, pull, md, pbc, t, x);
     }
 }
 
