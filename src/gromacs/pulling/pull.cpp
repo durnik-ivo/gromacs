@@ -485,6 +485,34 @@ static void apply_forces_cyl_grp(const pull_group_work_t *pgrp,
     }
 }
 
+
+/* Apply forces in a mass weighted fashion to a cylinder group */
+static void apply_forces_cyldens_grp(const pull_group_work_t *pgrp,
+                                 const t_mdatoms *md,
+                                 double f_scal,
+                                 rvec *f,
+                                 int gmx_unused nthreads)
+{
+    double inv_wm = pgrp->mwscale;
+
+    /* The cylinder group is always a slab in the system, thus large.
+     * Therefore we always thread-parallelize this group.
+     */
+#pragma omp parallel for num_threads(nthreads) schedule(static)
+    for (int i = 0; i < pgrp->nat_loc; i++)
+    {
+        int    ii     = pgrp->ind_loc[i];
+        double mass   = md->massT[ii];
+        double weight = pgrp->weight_loc[i];
+
+        for (int m = 0; m < DIM; m++)
+        {
+            f[ii][m] += inv_wm*pgrp->mdw[i][m]*f_scal;
+        }
+    }
+}
+
+
 /* Apply torque forces in a mass weighted fashion to the groups that define
  * the pull vector direction for pull coordinate pcrd.
  */
@@ -550,6 +578,12 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
         }
         apply_forces_grp(&pull->group[pcrd->params.group[1]], md,
                          f_tot, 1, f, pull->nthreads);
+    }
+    else if (pcrd->params.eGeom == epullgCYLDENS)
+    {
+        apply_forces_cyldens_grp(&pull->dyna[coord], md,
+                             pcrd->f_scal, f,
+                             pull->nthreads);
     }
     else
     {
@@ -891,6 +925,11 @@ static void get_pull_coord_distance(struct pull_t *pull,
     int                m;
 
     pcrd = &pull->coord[coord_ind];
+
+    if (pcrd->params.eGeom == epullgCYLDENS)
+    {
+        return;
+    }
 
     get_pull_coord_dr(pull, coord_ind, pbc);
 
@@ -2251,6 +2290,12 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
         calc_com_start = (pcrd->params.eGeom == epullgCYL         ? 1 : 0);
         calc_com_end   = pcrd->params.ngroup;
 
+        if (pcrd->params.eGeom == epullgCYL)
+        {
+            pcrd->params.eGeom = epullgCYLDENS;
+            calc_com_end = 0;
+        }
+
         for (g = calc_com_start; g < calc_com_end; g++)
         {
             pull->group[pcrd->params.group[g]].bCalcCOM = TRUE;
@@ -2461,6 +2506,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     if (pull->bCylinder)
     {
         snew(pull->dyna, pull->ncoord);
+        pull->densmap.grid = nullptr;
 
         for (c = 0; c < pull->ncoord; c++)
         {

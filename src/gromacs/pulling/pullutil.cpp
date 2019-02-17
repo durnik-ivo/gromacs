@@ -193,6 +193,109 @@ static void pull_set_pbcatoms(t_commrec *cr, struct pull_t *pull,
     }
 }
 
+
+static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
+                             t_pbc *pbc, double t, rvec *x, pull_group_work_t *pref,
+                             gmx_ga2la_t *ga2la, int start, int end, rvec g_x
+                             )
+{
+    int *nbins;
+    int i, ii, j, ibin[2], minidx;
+    double binwidth = 0.5, binfac[2], mixfac = 0.01;
+    double minval = 10.0;
+    pull_comm_t    *comm;
+    pull_densmap_t *densmap;
+
+    comm = &pull->comm;
+    densmap = &pull->densmap;
+    nbins = densmap->nbins;
+
+    if (!densmap->grid)
+    {
+        for (i = 0; i < 2; i++)
+        {
+            nbins[i] = ceil(pbc->box[i][i] / binwidth);
+        }
+        densmap->nallbins = nbins[0]*nbins[1];
+        snew(densmap->grid, densmap->nallbins);
+        mixfac = 1;
+    }
+    else
+    {
+        for (i = 0; i < densmap->nallbins; i++)
+        {
+            densmap->grid[i] *= (1 - mixfac);
+        }
+    }
+
+    for (i = 0; i < 2; i++)
+    {
+        binfac[i] = nbins[i] / pbc->box[i][i];
+    }
+
+    /* loop over all atoms in the main ref group */
+    for (i = 0; i < pref->params.nat; i++)
+    {
+        ii = pref->params.ind[i];
+        if (ga2la)
+        {
+            if (!ga2la_get_home(ga2la, pref->params.ind[i], &ii))
+            {
+                ii = -1;
+            }
+        }
+        if (ii >= start && ii < end)
+        {
+            for (j = 0; j < 2; j++) {
+                ibin[j] = x[ii][j] * binfac[j];
+                if (ibin[j] < 0)
+                {
+                    ibin[j] += nbins[j];
+                }
+                else if (ibin[j] >= nbins[j])
+                {
+                    ibin[j] -= nbins[j];
+                }
+            }
+            densmap->grid[ibin[1] + nbins[1]*ibin[0]] += mixfac;
+        }
+    }
+
+    if (cr != nullptr && PAR(cr))
+    {
+        /* Sum the contributions over the ranks */
+        pull_reduce_double(cr, comm, densmap->nallbins, densmap->grid);
+    }
+
+    fprintf(debug, "Slab density map\n");
+    for (i = 0; i < nbins[0]; i++)
+    {
+        for (j = 0; j < nbins[1]; j++)
+        {
+            fprintf(debug, " %6.3f", densmap->grid[j + nbins[1]*i]);
+        }
+        fprintf(debug, "\n");
+    }
+
+    minidx = -1;
+    for (i = 0; i < densmap->nallbins; i++)
+    {
+        if (densmap->grid[i] < minval)
+        {
+            minidx = i;
+            minval = densmap->grid[i];
+        }
+    }
+    if (minidx >= 0)
+    {
+        i = minidx / nbins[1];
+        j = minidx % nbins[1];
+        fprintf(debug, "Minimum density %g at %d, %d\n", minval, i, j);
+        g_x[0] = (i + 0.5) / binfac[0];
+        g_x[1] = (j + 0.5) / binfac[1];
+    }
+}
+
 static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                              t_pbc *pbc, double t, rvec *x)
 {
@@ -335,6 +438,90 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                 }
             }
         }
+        else if (pcrd->params.eGeom == epullgCYLDENS)
+        {
+            pull_group_work_t *pref, *pgrp, *pdyna;
+
+            /* pref will be the same group for all pull coordinates */
+            pref  = &pull->group[pcrd->params.group[0]];
+            pdyna = &pull->dyna[c];
+            copy_dvec_to_rvec(pcrd->vec, dir);
+            pdyna->nat_loc = 0;
+
+            for (i = 0; i < DIM; i++)
+            {
+                g_x[i] = 0;
+            }
+            update_density_map(cr, pull, md, pbc, t, x, pref, ga2la, start, end, g_x);
+
+            if (pcrd->params.rate != 0)
+            {
+                /* With rate=0, value_ref is set initially */
+                pcrd->value_ref = pcrd->params.init + pcrd->params.rate*t;
+            }
+
+            /* loop over all atoms in the main ref group */
+            for (i = 0; i < pref->params.nat; i++)
+            {
+                ii = pref->params.ind[i];
+                if (ga2la)
+                {
+                    if (!ga2la_get_home(ga2la, pref->params.ind[i], &ii))
+                    {
+                        ii = -1;
+                    }
+                }
+                if (ii >= start && ii < end)
+                {
+                    double dr2, dr2_rel, inp;
+                    dvec   dr;
+
+                    pbc_dx_aiuc(pbc, x[ii], g_x, dx);
+                    inp = iprod(dir, dx);
+                    dr2 = 0;
+                    for (m = 0; m < DIM; m++)
+                    {
+                        /* Determine the radial components */
+                        dr[m] = dx[m] - inp*dir[m];
+                        dr2  += dr[m]*dr[m];
+                    }
+                    dr2_rel = dr2*inv_cyl_r2;
+
+                    if (dr2_rel < 1)
+                    {
+                        double mass, weight, dweight_r;
+                        dvec   mdw;
+
+                        /* add to index, to sum of COM, to weight array */
+                        if (pdyna->nat_loc >= pdyna->nalloc_loc)
+                        {
+                            pdyna->nalloc_loc = over_alloc_large(pdyna->nat_loc+1);
+                            srenew(pdyna->ind_loc,    pdyna->nalloc_loc);
+                            srenew(pdyna->weight_loc, pdyna->nalloc_loc);
+                            srenew(pdyna->mdw,        pdyna->nalloc_loc);
+                            srenew(pdyna->dv,         pdyna->nalloc_loc);
+                        }
+                        pdyna->ind_loc[pdyna->nat_loc] = ii;
+
+                        mass      = md->massT[ii];
+                        /* The radial weight function is 1-2x^2+x^4,
+                         * where x=r/cylinder_r. Since this function depends
+                         * on the radial component, we also get radial forces
+                         * on both groups.
+                         */
+                        weight    = 1 + (-2 + dr2_rel)*dr2_rel;
+                        dweight_r = (-4 + 4*dr2_rel)*inv_cyl_r2;
+                        pdyna->weight_loc[pdyna->nat_loc] = weight;
+                        sum_a    += weight;
+                        wmass    += mass*weight;
+                        wwmass   += mass*weight*weight;
+                        dsvmul(mass*dweight_r, dr, mdw);
+                        copy_dvec(mdw, pdyna->mdw[pdyna->nat_loc]);
+                        pdyna->nat_loc++;
+                    }
+                }
+            }
+        }
         comm->dbuf_cyl[c*stride+0] = wmass;
         comm->dbuf_cyl[c*stride+1] = wwmass;
         comm->dbuf_cyl[c*stride+2] = sum_a;
@@ -405,6 +592,30 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                         pdyna->x[2], 1.0/pdyna->invtm);
                 fprintf(debug, "ffrad %8.3f %8.3f %8.3f\n",
                         pcrd->ffrad[XX], pcrd->ffrad[YY], pcrd->ffrad[ZZ]);
+            }
+        }
+        else if (pcrd->params.eGeom == epullgCYLDENS)
+        {
+            pull_group_work_t *pdyna, *pgrp;
+            double             wmass, wwmass, dist;
+
+            pdyna = &pull->dyna[c];
+
+            wmass          = comm->dbuf_cyl[c*stride+0];
+            wwmass         = comm->dbuf_cyl[c*stride+1];
+            pdyna->mwscale = 1.0/wmass;
+            /* Cylinder pulling can't be used with constraints, but we set
+             * wscale and invtm anyhow, in case someone would like to use them.
+             */
+            pdyna->wscale  = wmass/wwmass;
+            pdyna->invtm   = wwmass/(wmass*wmass);
+
+            pcrd->value = comm->dbuf_cyl[c*stride+2];
+
+            if (debug)
+            {
+                fprintf(debug, "Pull cylinder density %d: %8.3f\n",
+                        c, pcrd->value);
             }
         }
     }

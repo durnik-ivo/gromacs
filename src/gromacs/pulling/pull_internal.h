@@ -162,6 +162,13 @@ typedef struct {
 }
 pull_comm_t;
 
+typedef struct {
+    double *grid;
+    int nbins[2];
+    int nallbins;
+}
+pull_densmap_t;
+
 struct pull_t
 {
     pull_params_t      params;       /* The pull parameters, from inputrec */
@@ -199,6 +206,8 @@ struct pull_t
     int                numUnregisteredExternalPotentials;
     /* */
     int                numExternalPotentialsStillToBeAppliedThisStep;
+
+    pull_densmap_t densmap;
 };
 
 /*! \endcond */
