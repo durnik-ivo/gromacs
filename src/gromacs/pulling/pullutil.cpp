@@ -205,7 +205,7 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
     int *nbins;
     int i, ii, j, start, end, ibin[2], minidx;
     double binwidth = 0.5, binfac[2], mixfac = 0.01;
-    double minval = 10.0;
+    double minval = 4.0;
     pull_densmap_t *densmap;
 
     comm = &pull->comm;
@@ -283,9 +283,23 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
     {
         for (j = 0; j < nbins[1]; j++)
         {
-            fprintf(debug, " %6.3f", densmap->grid[j + nbins[1]*i]);
+            double d = densmap->grid[j + nbins[1]*i];
+            char c;
+            if (d >= 2*minval) {
+                c = '#';
+            }
+            else if (d >= minval) {
+                c = '*';
+            }
+            else if (d >= 0.5*minval) {
+                c = '.';
+            }
+            else {
+                c = ' ';
+            }
+            fputc(c, debug);
         }
-        fprintf(debug, "\n");
+        fputc('\n', debug);
     }
 
     minidx = -1;
