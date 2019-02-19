@@ -278,28 +278,31 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
         pull_reduce_double(cr, comm, densmap->nallbins, densmap->grid);
     }
 
-    fprintf(debug, "Slab density map\n");
-    for (i = 0; i < nbins[0]; i++)
+    if (debug)
     {
-        for (j = 0; j < nbins[1]; j++)
+        fprintf(debug, "Slab density map\n");
+        for (i = 0; i < nbins[0]; i++)
         {
-            double d = densmap->grid[j + nbins[1]*i];
-            char c;
-            if (d >= 2*minval) {
-                c = '#';
+            for (j = 0; j < nbins[1]; j++)
+            {
+                double d = densmap->grid[j + nbins[1]*i];
+                char c;
+                if (d >= 2*minval) {
+                    c = '#';
+                }
+                else if (d >= minval) {
+                    c = '*';
+                }
+                else if (d >= 0.5*minval) {
+                    c = '.';
+                }
+                else {
+                    c = ' ';
+                }
+                fputc(c, debug);
             }
-            else if (d >= minval) {
-                c = '*';
-            }
-            else if (d >= 0.5*minval) {
-                c = '.';
-            }
-            else {
-                c = ' ';
-            }
-            fputc(c, debug);
+            fputc('\n', debug);
         }
-        fputc('\n', debug);
     }
 
     minidx = -1;
@@ -316,7 +319,10 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
     {
         i = minidx / nbins[1];
         j = minidx % nbins[1];
-        fprintf(debug, "Minimum density %g at %d, %d\n", minval, i, j);
+        if (debug)
+        {
+            fprintf(debug, "Minimum density %g at %d, %d\n", minval, i, j);
+        }
         g_x[0] = (i + 0.5) / binfac[0];
         g_x[1] = (j + 0.5) / binfac[1];
     }
