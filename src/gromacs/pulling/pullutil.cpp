@@ -596,10 +596,9 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         if (pcrd->params.eGeom == epullgCYLDENS)
         {
-            pull_group_work_t *pref, *pgrp, *pdyna;
+            pull_group_work_t *pgrp, *pdyna;
 
-            /* pref will be the same group for all pull coordinates */
-            pref  = &pull->group[pcrd->params.group[0]];
+            pgrp  = &pull->group[pcrd->params.group[1]];
             pdyna = &pull->dyna[c];
             copy_dvec_to_rvec(pcrd->vec, dir);
             pdyna->nat_loc = 0;
@@ -611,12 +610,12 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
             }
 
             /* loop over all atoms in the main ref group */
-            for (i = 0; i < pref->params.nat; i++)
+            for (i = 0; i < pgrp->params.nat; i++)
             {
-                ii = pref->params.ind[i];
+                ii = pgrp->params.ind[i];
                 if (ga2la)
                 {
-                    if (!ga2la_get_home(ga2la, pref->params.ind[i], &ii))
+                    if (!ga2la_get_home(ga2la, pgrp->params.ind[i], &ii))
                     {
                         ii = -1;
                     }
