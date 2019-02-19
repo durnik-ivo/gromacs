@@ -195,18 +195,29 @@ static void pull_set_pbcatoms(t_commrec *cr, struct pull_t *pull,
 
 
 static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
-                             t_pbc *pbc, double t, rvec *x, pull_group_work_t *pref,
-                             gmx_ga2la_t *ga2la, int start, int end, rvec g_x
+                             t_pbc *pbc, rvec *x, pull_group_work_t *pref,
+                             rvec g_x
                              )
 {
+
+    pull_comm_t    *comm;
+    gmx_ga2la_t    *ga2la = nullptr;
     int *nbins;
-    int i, ii, j, ibin[2], minidx;
+    int i, ii, j, start, end, ibin[2], minidx;
     double binwidth = 0.5, binfac[2], mixfac = 0.01;
     double minval = 10.0;
-    pull_comm_t    *comm;
     pull_densmap_t *densmap;
 
     comm = &pull->comm;
+
+    if (cr && DOMAINDECOMP(cr))
+    {
+        ga2la = cr->dd->ga2la;
+    }
+
+    start = 0;
+    end   = md->homenr;
+
     densmap = &pull->densmap;
     nbins = densmap->nbins;
 
@@ -286,6 +297,7 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
             minval = densmap->grid[i];
         }
     }
+
     if (minidx >= 0)
     {
         i = minidx / nbins[1];
@@ -294,6 +306,11 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
         g_x[0] = (i + 0.5) / binfac[0];
         g_x[1] = (j + 0.5) / binfac[1];
     }
+    else {
+        g_x[0] = 0;
+        g_x[1] = 0;
+    }
+    g_x[2] = 0;
 }
 
 static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
@@ -515,12 +532,12 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
 
 static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
-                             t_pbc *pbc, double t, rvec *x)
+                             t_pbc *pbc, double t, rvec *x, rvec g_x)
 {
     /* The size and stride per coord for the reduction buffer */
     const int       stride = 9;
     int             c, i, ii, m, start, end;
-    rvec            g_x, dx, dir;
+    rvec            dx, dir;
     double          inv_cyl_r2;
     pull_comm_t    *comm;
     gmx_ga2la_t    *ga2la = nullptr;
@@ -566,12 +583,6 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
             pdyna = &pull->dyna[c];
             copy_dvec_to_rvec(pcrd->vec, dir);
             pdyna->nat_loc = 0;
-
-            for (i = 0; i < DIM; i++)
-            {
-                g_x[i] = 0;
-            }
-            update_density_map(cr, pull, md, pbc, t, x, pref, ga2la, start, end, g_x);
 
             if (pcrd->params.rate != 0)
             {
@@ -1099,7 +1110,9 @@ void pull_calc_coms(t_commrec *cr,
         /* Calculate the COMs for the cyclinder reference groups */
         make_cyl_refgrps(cr, pull, md, pbc, t, x);
 
-        make_cyldens_grps(cr, pull, md, pbc, t, x);
+        rvec g_x;
+        update_density_map(cr, pull, md, pbc, x, &pull->group[1], g_x);
+        make_cyldens_grps(cr, pull, md, pbc, t, x, g_x);
     }
 }
 
