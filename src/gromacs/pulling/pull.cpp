@@ -2237,6 +2237,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
             case epullgDIRPBC:
             case epullgCYL:
             case epullgANGLEAXIS:
+            case epullgCYLDENS:
                 copy_rvec_to_dvec(pull_params->coord[c].vec, pcrd->vec);
                 break;
             default:
@@ -2260,7 +2261,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
                 pcrd->params.eGeom == epullgDIRRELATIVE ||
                 pcrd->params.eGeom == epullgANGLE ||
                 pcrd->params.eGeom == epullgDIHEDRAL ||
-                pcrd->params.eGeom == epullgANGLEAXIS)
+                pcrd->params.eGeom == epullgANGLEAXIS ||
+                pcrd->params.eGeom == epullgCYLDENS)
             {
                 gmx_fatal(FARGS, "Pulling of type %s can not be combined with geometry %s. Consider using pull type %s.",
                           epull_names[pcrd->params.eType],
@@ -2275,7 +2277,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
             pull->bPotential = TRUE;
         }
 
-        if (pcrd->params.eGeom == epullgCYL)
+        if (pcrd->params.eGeom == epullgCYL || pcrd->params.eGeom == epullgCYLDENS)
         {
             pull->bCylinder = TRUE;
         }
@@ -2290,9 +2292,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
         calc_com_start = (pcrd->params.eGeom == epullgCYL         ? 1 : 0);
         calc_com_end   = pcrd->params.ngroup;
 
-        if (pcrd->params.eGeom == epullgCYL)
+        if (pcrd->params.eGeom == epullgCYLDENS)
         {
-            pcrd->params.eGeom = epullgCYLDENS;
             calc_com_end = 0;
         }
 
