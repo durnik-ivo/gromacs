@@ -202,9 +202,15 @@ static void densmap_update(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
     gmx_ga2la_t    *ga2la = nullptr;
     int *nbins;
     int i, ii, j, start, end, ibin[2];
-    double binwidth = 0.5, binfac[2], mixfac = 0.01;
-    double minval = 4.0;
+    double binwidth, binfac[2], mixfac;
     pull_densmap_t *densmap;
+
+    binwidth = pull->params.densmap_binwidth;
+    if (binwidth <= 0)
+    {
+        return;
+    }
+    mixfac = pull->params.densmap_mixfactor;
 
     comm = &pull->comm;
 
@@ -278,6 +284,8 @@ static void densmap_update(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
     if (debug)
     {
+        double minval = pull->params.densmap_threshold;
+
         fprintf(debug, "Slab density map\n");
         for (i = 0; i < nbins[0]; i++)
         {
@@ -310,10 +318,11 @@ static void densmap_find_minimum(struct pull_t *pull, t_pbc *pbc, rvec g_x)
     int *nbins;
     int i, j, minidx;
     double binfac[2];
-    double minval = 4.0;
+    double minval;
     pull_densmap_t *densmap;
 
     densmap = &pull->densmap;
+    minval = pull->params.densmap_threshold;
 
     if (!densmap->grid)
     {

@@ -118,6 +118,7 @@ enum tpxv {
     tpxv_PullExternalPotential,                              /**< Added pull type external potential */
     tpxv_GenericParamsForElectricField,                      /**< Introduced KeyValueTree and moved electric field parameters */
     tpxv_AcceleratedWeightHistogram,                         /**< sampling with accelerated weight histogram method (AWH) */
+    tpxv_PullCylinderDensity,
     tpxv_Count                                               /**< the total number of tpxv versions */
 };
 
@@ -768,6 +769,12 @@ static void do_pull(t_fileio *fio, pull_params_t *pull, gmx_bool bRead,
     }
     gmx_fio_do_int(fio, pull->nstxout);
     gmx_fio_do_int(fio, pull->nstfout);
+    if (file_version >= tpxv_PullCylinderDensity)
+    {
+        gmx_fio_do_real(fio, pull->densmap_binwidth);
+        gmx_fio_do_real(fio, pull->densmap_mixfactor);
+        gmx_fio_do_real(fio, pull->densmap_threshold);
+    }
     if (bRead)
     {
         snew(pull->group, pull->ngroup);

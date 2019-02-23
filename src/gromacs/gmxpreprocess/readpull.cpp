@@ -296,6 +296,9 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     ITYPE("pull-ngroups",     pull->ngroup, 1);
     CTYPE("Number of pull coordinates");
     ITYPE("pull-ncoords",     pull->ncoord, 1);
+    RTYPE("pull-densmap-binwidth",  pull->densmap_binwidth, 0);
+    RTYPE("pull-densmap-mixfactor", pull->densmap_mixfactor, 0.01);
+    RTYPE("pull-densmap-threshold", pull->densmap_threshold, 0);
 
     if (pull->ngroup < 1)
     {

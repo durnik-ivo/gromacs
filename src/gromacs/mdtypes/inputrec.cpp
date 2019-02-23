@@ -643,6 +643,9 @@ static void pr_pull(FILE *fp, int indent, const pull_params_t *pull)
     PS("pull-print-components", EBOOL(pull->bPrintComp));
     PI("pull-nstxout", pull->nstxout);
     PI("pull-nstfout", pull->nstfout);
+    PR("pull-densmap-binwidth", pull->densmap_binwidth);
+    PR("pull-densmap-mixfactor", pull->densmap_mixfactor);
+    PR("pull-densmap-threshold", pull->densmap_threshold);
     PI("pull-ngroups", pull->ngroup);
     for (g = 0; g < pull->ngroup; g++)
     {

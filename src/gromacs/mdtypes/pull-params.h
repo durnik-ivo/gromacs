@@ -96,6 +96,10 @@ typedef struct pull_params_t {
     int            nstxout;        /**< Output interval for pull x */
     int            nstfout;        /**< Output interval for pull f */
 
+    real           densmap_binwidth;
+    real           densmap_mixfactor;
+    real           densmap_threshold;
+
     t_pull_group  *group;          /**< groups to pull/restrain/etc/ */
     t_pull_coord  *coord;          /**< the pull coordinates */
 } pull_params_t;
