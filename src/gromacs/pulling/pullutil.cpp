@@ -194,16 +194,14 @@ static void pull_set_pbcatoms(t_commrec *cr, struct pull_t *pull,
 }
 
 
-static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
-                             t_pbc *pbc, rvec *x, pull_group_work_t *pref,
-                             rvec g_x
-                             )
+static void densmap_update(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
+                           t_pbc *pbc, rvec *x, pull_group_work_t *pref)
 {
 
     pull_comm_t    *comm;
     gmx_ga2la_t    *ga2la = nullptr;
     int *nbins;
-    int i, ii, j, start, end, ibin[2], minidx;
+    int i, ii, j, start, end, ibin[2];
     double binwidth = 0.5, binfac[2], mixfac = 0.01;
     double minval = 4.0;
     pull_densmap_t *densmap;
@@ -304,6 +302,30 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
             fputc('\n', debug);
         }
     }
+}
+
+static void densmap_find_minimum(struct pull_t *pull, t_pbc *pbc, rvec g_x)
+{
+
+    int *nbins;
+    int i, j, minidx;
+    double binfac[2];
+    double minval = 4.0;
+    pull_densmap_t *densmap;
+
+    densmap = &pull->densmap;
+
+    if (!densmap->grid)
+    {
+        return;
+    }
+
+    nbins = densmap->nbins;
+
+    for (i = 0; i < 2; i++)
+    {
+        binfac[i] = nbins[i] / pbc->box[i][i];
+    }
 
     minidx = -1;
     for (i = 0; i < densmap->nallbins; i++)
@@ -325,12 +347,8 @@ static void update_density_map(t_commrec *cr, struct pull_t *pull, t_mdatoms *md
         }
         g_x[0] = (i + 0.5) / binfac[0];
         g_x[1] = (j + 0.5) / binfac[1];
+        g_x[2] = 0;
     }
-    else {
-        g_x[0] = 0;
-        g_x[1] = 0;
-    }
-    g_x[2] = 0;
 }
 
 static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
@@ -1129,8 +1147,9 @@ void pull_calc_coms(t_commrec *cr,
         /* Calculate the COMs for the cyclinder reference groups */
         make_cyl_refgrps(cr, pull, md, pbc, t, x);
 
-        rvec g_x;
-        update_density_map(cr, pull, md, pbc, x, &pull->group[1], g_x);
+        rvec g_x = {0, 0, 0};
+        densmap_update(cr, pull, md, pbc, x, &pull->group[1]);
+        densmap_find_minimum(pull, pbc, g_x);
         make_cyldens_grps(cr, pull, md, pbc, t, x, g_x);
     }
 }
