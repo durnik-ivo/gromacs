@@ -298,6 +298,7 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     ITYPE("pull-ncoords",     pull->ncoord, 1);
     RTYPE("pull-densmap-binwidth",  pull->densmap_binwidth, 0);
     RTYPE("pull-densmap-mixfactor", pull->densmap_mixfactor, 0.01);
+    ITYPE("pull-densmap-nstmin",    pull->densmap_nstmin, 0);
     RTYPE("pull-densmap-threshold", pull->densmap_threshold, 0);
 
     if (pull->ngroup < 1)
@@ -532,7 +533,7 @@ pull_t *set_pull_init(t_inputrec *ir, const gmx_mtop_t *mtop,
 
     t_start = ir->init_t + ir->init_step*ir->delta_t;
 
-    pull_calc_coms(nullptr, pull_work, md, &pbc, t_start, x, nullptr);
+    pull_calc_coms(nullptr, pull_work, md, &pbc, ir->init_step, t_start, x, nullptr);
 
     int groupThatFailsPbc = pullCheckPbcWithinGroups(*pull_work, x, pbc);
     if (groupThatFailsPbc >= 0)

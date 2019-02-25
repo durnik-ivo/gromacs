@@ -625,7 +625,7 @@ gmx_bool constrain(FILE *fplog, gmx_bool bLog, gmx_bool bEner,
                 t = ir->init_t;
             }
             set_pbc(&pbc, ir->ePBC, box);
-            pull_constraint(ir->pull_work, md, &pbc, cr, ir->delta_t, t, x, xprime, v, *vir);
+            pull_constraint(ir->pull_work, md, &pbc, cr, ir->delta_t, step, t, x, xprime, v, *vir);
         }
         if (constr->ed && delta_step > 0)
         {

@@ -185,7 +185,7 @@ void clear_pull_forces(struct pull_t *pull);
  * \returns The pull potential energy.
  */
 real pull_potential(struct pull_t *pull, t_mdatoms *md, struct t_pbc *pbc,
-                    t_commrec *cr, double t, real lambda,
+                    t_commrec *cr, gmx_int64_t step, double t, real lambda,
                     rvec *x, gmx::ForceWithVirial *force, real *dvdlambda);
 
 
@@ -204,7 +204,7 @@ real pull_potential(struct pull_t *pull, t_mdatoms *md, struct t_pbc *pbc,
  * \param[in,out] vir    The virial, which, if != NULL, gets a pull correction.
  */
 void pull_constraint(struct pull_t *pull, t_mdatoms *md, struct t_pbc *pbc,
-                     t_commrec *cr, double dt, double t,
+                     t_commrec *cr, double dt, gmx_int64_t step, double t,
                      rvec *x, rvec *xp, rvec *v, tensor vir);
 
 
@@ -277,6 +277,7 @@ void pull_calc_coms(t_commrec        *cr,
                     struct pull_t    *pull,
                     t_mdatoms        *md,
                     struct t_pbc     *pbc,
+                    gmx_int64_t       step,
                     double            t,
                     rvec              x[],
                     rvec             *xp);

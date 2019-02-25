@@ -1752,7 +1752,7 @@ static void do_pull_pot_coord(struct pull_t *pull, int coord_ind, t_pbc *pbc,
 }
 
 real pull_potential(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
-                    t_commrec *cr, double t, real lambda,
+                    t_commrec *cr, gmx_int64_t step, double t, real lambda,
                     rvec *x, gmx::ForceWithVirial *force, real *dvdlambda)
 {
     real V = 0;
@@ -1769,7 +1769,7 @@ real pull_potential(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
     {
         real dVdl = 0;
 
-        pull_calc_coms(cr, pull, md, pbc, t, x, nullptr);
+        pull_calc_coms(cr, pull, md, pbc, step, t, x, nullptr);
 
         rvec       *f             = as_rvec_array(force->force_.data());
         matrix      virial        = { { 0 } };
@@ -1808,14 +1808,14 @@ real pull_potential(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
 }
 
 void pull_constraint(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
-                     t_commrec *cr, double dt, double t,
+                     t_commrec *cr, double dt, gmx_int64_t step, double t,
                      rvec *x, rvec *xp, rvec *v, tensor vir)
 {
     assert(pull != NULL);
 
     if (pull->comm.bParticipate)
     {
-        pull_calc_coms(cr, pull, md, pbc, t, x, xp);
+        pull_calc_coms(cr, pull, md, pbc, step, t, x, xp);
 
         do_constraint(pull, pbc, xp, v, MASTER(cr), vir, dt, t);
     }

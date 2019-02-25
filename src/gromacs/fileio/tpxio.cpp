@@ -773,6 +773,7 @@ static void do_pull(t_fileio *fio, pull_params_t *pull, gmx_bool bRead,
     {
         gmx_fio_do_real(fio, pull->densmap_binwidth);
         gmx_fio_do_real(fio, pull->densmap_mixfactor);
+        gmx_fio_do_int(fio, pull->densmap_nstmin);
         gmx_fio_do_real(fio, pull->densmap_threshold);
     }
     if (bRead)

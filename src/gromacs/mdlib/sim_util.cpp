@@ -281,6 +281,7 @@ static void pull_potential_wrapper(t_commrec *cr,
                                    t_mdatoms *mdatoms,
                                    gmx_enerdata_t *enerd,
                                    real *lambda,
+                                   gmx_int64_t step,
                                    double t,
                                    gmx_wallcycle_t wcycle)
 {
@@ -295,7 +296,7 @@ static void pull_potential_wrapper(t_commrec *cr,
     dvdl                     = 0;
     enerd->term[F_COM_PULL] +=
         pull_potential(ir->pull_work, mdatoms, &pbc,
-                       cr, t, lambda[efptRESTRAINT], x, force, &dvdl);
+                       cr, step, t, lambda[efptRESTRAINT], x, force, &dvdl);
     enerd->dvdl_lin[efptRESTRAINT] += dvdl;
     wallcycle_stop(wcycle, ewcPULLPOT);
 }
@@ -847,7 +848,7 @@ computeSpecialForces(FILE             *fplog,
     {
         pull_potential_wrapper(cr, inputrec, box, x,
                                forceWithVirial,
-                               mdatoms, enerd, lambda, t,
+                               mdatoms, enerd, lambda, step, t,
                                wcycle);
 
         if (inputrec->bDoAwh)

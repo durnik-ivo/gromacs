@@ -48,6 +48,7 @@
 #include "gromacs/math/functions.h"
 #include "gromacs/math/utilities.h"
 #include "gromacs/math/vec.h"
+#include "gromacs/mdlib/sim_util.h"
 #include "gromacs/mdtypes/commrec.h"
 #include "gromacs/mdtypes/md_enums.h"
 #include "gromacs/mdtypes/mdatom.h"
@@ -893,7 +894,8 @@ static void sum_com_part_cosweight(const pull_group_work_t *pgrp,
 
 /* calculates center of mass of selection index from all coordinates x */
 void pull_calc_coms(t_commrec *cr,
-                    struct pull_t *pull, t_mdatoms *md, t_pbc *pbc, double t,
+                    struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
+                    gmx_int64_t step, double t,
                     rvec x[], rvec *xp)
 {
     int          g;
@@ -1164,7 +1166,8 @@ void pull_calc_coms(t_commrec *cr,
         densmap_update(cr, pull, md, pbc, x, &pull->group[1]);
 
         rvec x_min;
-        if (densmap_find_minimum(pull, pbc, x_min))
+        if (do_per_step(step, pull->params.densmap_nstmin) &&
+            densmap_find_minimum(pull, pbc, x_min))
         {
             for (int i = 0; i < pull->ncoord; i++)
             {
