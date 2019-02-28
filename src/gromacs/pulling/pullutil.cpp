@@ -708,7 +708,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                         sum_a    += weight;
                         wmass    += mass*weight;
                         wwmass   += mass*weight*weight;
-                        dsvmul(mass*dweight_r, dr, mdw);
+                        dsvmul(dweight_r, dr, mdw);
                         copy_dvec(mdw, pdyna->mdw[pdyna->nat_loc]);
                         pdyna->nat_loc++;
                     }

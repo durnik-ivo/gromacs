@@ -507,7 +507,7 @@ static void apply_forces_cyldens_grp(const pull_group_work_t *pgrp,
 
         for (int m = 0; m < DIM; m++)
         {
-            f[ii][m] += inv_wm*pgrp->mdw[i][m]*f_scal;
+            f[ii][m] += pgrp->mdw[i][m]*f_scal;
         }
     }
 }
