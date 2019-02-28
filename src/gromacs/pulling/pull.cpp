@@ -488,22 +488,17 @@ static void apply_forces_cyl_grp(const pull_group_work_t *pgrp,
 
 /* Apply forces in a mass weighted fashion to a cylinder group */
 static void apply_forces_cyldens_grp(const pull_group_work_t *pgrp,
-                                 const t_mdatoms *md,
-                                 double f_scal,
-                                 rvec *f,
-                                 int gmx_unused nthreads)
+                                     double f_scal,
+                                     rvec *f,
+                                     int gmx_unused nthreads)
 {
-    double inv_wm = pgrp->mwscale;
-
     /* The cylinder group is always a slab in the system, thus large.
      * Therefore we always thread-parallelize this group.
      */
 #pragma omp parallel for num_threads(nthreads) schedule(static)
     for (int i = 0; i < pgrp->nat_loc; i++)
     {
-        int    ii     = pgrp->ind_loc[i];
-        double mass   = md->massT[ii];
-        double weight = pgrp->weight_loc[i];
+        int ii = pgrp->ind_loc[i];
 
         for (int m = 0; m < DIM; m++)
         {
@@ -581,9 +576,8 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
     }
     else if (pcrd->params.eGeom == epullgCYLDENS)
     {
-        apply_forces_cyldens_grp(&pull->dyna[coord], md,
-                             pcrd->f_scal, f,
-                             pull->nthreads);
+        apply_forces_cyldens_grp(&pull->dyna[coord], pcrd->f_scal,
+                                 f, pull->nthreads);
     }
     else
     {
@@ -2670,6 +2664,7 @@ static void destroy_pull(struct pull_t *pull)
     sfree(pull->comm.rbuf);
     sfree(pull->comm.dbuf);
     sfree(pull->comm.dbuf_cyl);
+    sfree(pull->comm.dbuf_cyldens);
 
     sfree(pull);
 }

@@ -159,6 +159,7 @@ typedef struct {
     rvec       *rbuf;            /* COM calculation buffer */
     dvec       *dbuf;            /* COM calculation buffer */
     double     *dbuf_cyl;        /* cylinder ref. groups calculation buffer */
+    double     *dbuf_cyldens;    /* cylinder density calculation buffer */
 }
 pull_comm_t;
 

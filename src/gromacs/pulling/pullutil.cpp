@@ -615,8 +615,6 @@ static void make_cyl_refgrps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                              t_pbc *pbc, double t, rvec *x)
 {
-    /* The size and stride per coord for the reduction buffer */
-    const int       stride = 9;
     int             c, i, ii, m, start, end;
     rvec            dx, dir;
     double          inv_cyl_r2;
@@ -625,9 +623,9 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
     comm = &pull->comm;
 
-    if (comm->dbuf_cyl == nullptr)
+    if (comm->dbuf_cyldens == nullptr)
     {
-        snew(comm->dbuf_cyl, pull->ncoord*stride);
+        snew(comm->dbuf_cyldens, pull->ncoord);
     }
 
     if (cr && DOMAINDECOMP(cr))
@@ -644,16 +642,11 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
     for (c = 0; c < pull->ncoord; c++)
     {
         pull_coord_work_t *pcrd;
-        double             sum_a, wmass, wwmass;
-        dvec               radf_fac0, radf_fac1;
+        double             sumw;
 
-        pcrd   = &pull->coord[c];
+        pcrd = &pull->coord[c];
 
-        sum_a  = 0;
-        wmass  = 0;
-        wwmass = 0;
-        clear_dvec(radf_fac0);
-        clear_dvec(radf_fac1);
+        sumw = 0;
 
         if (pcrd->params.eGeom == epullgCYLDENS)
         {
@@ -699,8 +692,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
                     if (dr2_rel < 1)
                     {
-                        double mass, weight, dweight_r;
-                        dvec   mdw;
+                        double weight, dweight_r;
 
                         /* add to index, to sum of COM, to weight array */
                         if (pdyna->nat_loc >= pdyna->nalloc_loc)
@@ -713,7 +705,6 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                         }
                         pdyna->ind_loc[pdyna->nat_loc] = ii;
 
-                        mass      = md->massT[ii];
                         /* The radial weight function is 1-2x^2+x^4,
                          * where x=r/cylinder_r. Since this function depends
                          * on the radial component, we also get radial forces
@@ -722,31 +713,20 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
                         weight    = 1 + (-2 + dr2_rel)*dr2_rel;
                         dweight_r = (-4 + 4*dr2_rel)*inv_cyl_r2;
                         pdyna->weight_loc[pdyna->nat_loc] = weight;
-                        sum_a    += weight;
-                        wmass    += mass*weight;
-                        wwmass   += mass*weight*weight;
-                        dsvmul(dweight_r, dr, mdw);
-                        copy_dvec(mdw, pdyna->mdw[pdyna->nat_loc]);
+                        sumw     += weight;
+                        dsvmul(dweight_r, dr, pdyna->mdw[pdyna->nat_loc]);
                         pdyna->nat_loc++;
                     }
                 }
             }
         }
-        comm->dbuf_cyl[c*stride+0] = wmass;
-        comm->dbuf_cyl[c*stride+1] = wwmass;
-        comm->dbuf_cyl[c*stride+2] = sum_a;
-        comm->dbuf_cyl[c*stride+3] = radf_fac0[XX];
-        comm->dbuf_cyl[c*stride+4] = radf_fac0[YY];
-        comm->dbuf_cyl[c*stride+5] = radf_fac0[ZZ];
-        comm->dbuf_cyl[c*stride+6] = radf_fac1[XX];
-        comm->dbuf_cyl[c*stride+7] = radf_fac1[YY];
-        comm->dbuf_cyl[c*stride+8] = radf_fac1[ZZ];
+        comm->dbuf_cyldens[c] = sumw;
     }
 
     if (cr != nullptr && PAR(cr))
     {
         /* Sum the contributions over the ranks */
-        pull_reduce_double(cr, comm, pull->ncoord*stride, comm->dbuf_cyl);
+        pull_reduce_double(cr, comm, pull->ncoord, comm->dbuf_cyldens);
     }
 
     for (c = 0; c < pull->ncoord; c++)
@@ -757,21 +737,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         if (pcrd->params.eGeom == epullgCYLDENS)
         {
-            pull_group_work_t *pdyna, *pgrp;
-            double             wmass, wwmass, dist;
-
-            pdyna = &pull->dyna[c];
-
-            wmass          = comm->dbuf_cyl[c*stride+0];
-            wwmass         = comm->dbuf_cyl[c*stride+1];
-            pdyna->mwscale = 1.0/wmass;
-            /* Cylinder pulling can't be used with constraints, but we set
-             * wscale and invtm anyhow, in case someone would like to use them.
-             */
-            pdyna->wscale  = wmass/wwmass;
-            pdyna->invtm   = wwmass/(wmass*wmass);
-
-            pcrd->value = comm->dbuf_cyl[c*stride+2];
+            pcrd->value = comm->dbuf_cyldens[c];
 
             if (debug)
             {
