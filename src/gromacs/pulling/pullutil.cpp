@@ -263,18 +263,35 @@ static void densmap_update(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
         }
         if (ii >= start && ii < end)
         {
+            double offset[2], pos;
+            int neighbin[2];
+
             for (j = 0; j < 2; j++) {
-                ibin[j] = x[ii][j] * binfac[j];
-                if (ibin[j] < 0)
+                pos = x[ii][j] * binfac[j];
+                ibin[j] = (int) pos;
+                offset[j] = pos - ibin[j] - 0.5;
+                while (ibin[j] < 0)
                 {
                     ibin[j] += nbins[j];
                 }
-                else if (ibin[j] >= nbins[j])
+                while (ibin[j] >= nbins[j])
                 {
                     ibin[j] -= nbins[j];
                 }
+                if (offset[j] < 0)
+                {
+                    neighbin[j] = (ibin[j] > 0) ? ibin[j] - 1 : nbins[j] - 1;
+                    offset[j] = -offset[j];
+                }
+                else
+                {
+                    neighbin[j] = (ibin[j] < nbins[j] - 1) ? ibin[j] + 1 : 0;
+                }
             }
-            densmap->grid[ibin[1] + nbins[1]*ibin[0]] += mixfac;
+            densmap->grid[nbins[1]*ibin[0]     + ibin[1]]     += mixfac * (1 - offset[0]) * (1 - offset[1]);
+            densmap->grid[nbins[1]*ibin[0]     + neighbin[1]] += mixfac * (1 - offset[0]) *      offset[1];
+            densmap->grid[nbins[1]*neighbin[0] + ibin[1]]     += mixfac *      offset[0]  * (1 - offset[1]);
+            densmap->grid[nbins[1]*neighbin[0] + neighbin[1]] += mixfac *      offset[0]  *      offset[1];
         }
     }
 
