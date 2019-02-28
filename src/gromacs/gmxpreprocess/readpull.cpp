@@ -300,6 +300,7 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     RTYPE("pull-densmap-mixfactor", pull->densmap_mixfactor, 0.01);
     ITYPE("pull-densmap-nstmin",    pull->densmap_nstmin, 0);
     RTYPE("pull-densmap-threshold", pull->densmap_threshold, 0);
+    RTYPE("pull-densmap-hysteresis", pull->densmap_hysteresis, 0);
 
     if (pull->ngroup < 1)
     {

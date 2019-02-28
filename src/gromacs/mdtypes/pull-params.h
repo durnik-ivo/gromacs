@@ -100,6 +100,7 @@ typedef struct pull_params_t {
     real           densmap_mixfactor;
     int            densmap_nstmin;
     real           densmap_threshold;
+    real           densmap_hysteresis;
 
     t_pull_group  *group;          /**< groups to pull/restrain/etc/ */
     t_pull_coord  *coord;          /**< the pull coordinates */

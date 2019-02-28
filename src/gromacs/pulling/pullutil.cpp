@@ -235,6 +235,7 @@ static void densmap_update(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
         densmap->nallbins = nbins[0]*nbins[1];
         snew(densmap->grid, densmap->nallbins);
         mixfac = 1;
+        densmap->minimum_index = -1;
     }
     else
     {
@@ -323,11 +324,20 @@ static bool densmap_find_minimum(struct pull_t *pull, t_pbc *pbc, rvec x_min)
     pull_densmap_t *densmap;
 
     densmap = &pull->densmap;
-    minval = pull->params.densmap_threshold;
 
     if (!densmap->grid)
     {
         return false;
+    }
+
+    if (densmap->minimum_index >= 0)
+    {
+        minval = std::min(densmap->grid[densmap->minimum_index] - pull->params.densmap_hysteresis,
+                          (double) pull->params.densmap_threshold);
+    }
+    else
+    {
+        minval = pull->params.densmap_threshold;
     }
 
     nbins = densmap->nbins;
@@ -349,6 +359,7 @@ static bool densmap_find_minimum(struct pull_t *pull, t_pbc *pbc, rvec x_min)
 
     if (minidx >= 0)
     {
+        densmap->minimum_index = minidx;
         i = minidx / nbins[1];
         j = minidx % nbins[1];
         if (debug)

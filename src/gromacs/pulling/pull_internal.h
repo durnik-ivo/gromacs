@@ -166,6 +166,7 @@ typedef struct {
     double *grid;
     int nbins[2];
     int nallbins;
+    int minimum_index;
 }
 pull_densmap_t;
 

@@ -647,6 +647,7 @@ static void pr_pull(FILE *fp, int indent, const pull_params_t *pull)
     PR("pull-densmap-mixfactor", pull->densmap_mixfactor);
     PI("pull-densmap-nstmin", pull->densmap_nstmin);
     PR("pull-densmap-threshold", pull->densmap_threshold);
+    PR("pull-densmap-hysteresis", pull->densmap_hysteresis);
     PI("pull-ngroups", pull->ngroup);
     for (g = 0; g < pull->ngroup; g++)
     {
