@@ -1284,7 +1284,8 @@ int pullCheckPbcWithinGroups(const pull_t &pull,
             for (int d = 0; d < DIM; d++)
             {
                 if (coordParams.dim[d] &&
-                    !(coordParams.eGeom == epullgCYL && groupIndex == 0))
+                    !(coordParams.eGeom == epullgCYL && groupIndex == 0) &&
+                    coordParams.eGeom != epullgCYLDENS)
                 {
                     dimUsed[coordParams.group[groupIndex]][d] = true;
                 }
