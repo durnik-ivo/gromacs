@@ -1157,7 +1157,7 @@ void pull_calc_coms(t_commrec *cr,
         /* Calculate the COMs for the cyclinder reference groups */
         make_cyl_refgrps(cr, pull, md, pbc, t, x);
 
-        densmap_update(cr, pull, md, pbc, x, &pull->group[1]);
+        densmap_update(cr, pull, md, pbc, x, &pull->group[pull->params.densmap_group]);
 
         rvec x_min;
         if (do_per_step(step, pull->params.densmap_nstmin) &&

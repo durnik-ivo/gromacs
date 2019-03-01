@@ -296,6 +296,7 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     ITYPE("pull-ngroups",     pull->ngroup, 1);
     CTYPE("Number of pull coordinates");
     ITYPE("pull-ncoords",     pull->ncoord, 1);
+    ITYPE("pull-densmap-group",     pull->densmap_group, 0);
     RTYPE("pull-densmap-binwidth",  pull->densmap_binwidth, 0);
     RTYPE("pull-densmap-mixfactor", pull->densmap_mixfactor, 0.01);
     ITYPE("pull-densmap-nstmin",    pull->densmap_nstmin, 0);
