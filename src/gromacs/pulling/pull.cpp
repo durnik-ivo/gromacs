@@ -507,6 +507,22 @@ static void apply_forces_cyldens_grp(const pull_group_work_t *pgrp,
     }
 }
 
+/* Apply forces in a mass weighted fashion to a minimum distance from origin group */
+static void apply_forces_mdiso_grp(const pull_group_work_t *pgrp,
+                                   double f_scal,
+                                   rvec *f)
+{
+    for (int i = 0; i < pgrp->nat_loc; i++)
+    {
+        int ii = pgrp->ind_loc[i];
+
+        for (int m = 0; m < DIM; m++)
+        {
+            f[ii][m] += pgrp->mdw[i][m]*f_scal;
+        }
+    }
+}
+
 
 /* Apply torque forces in a mass weighted fashion to the groups that define
  * the pull vector direction for pull coordinate pcrd.
@@ -578,6 +594,11 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
     {
         apply_forces_cyldens_grp(&pull->dyna[coord], pcrd->f_scal,
                                  f, pull->nthreads);
+    }
+    else if (pcrd->params.eGeom == epullgMDISO)
+    {
+        apply_forces_mdiso_grp(&pull->group[pcrd->params.group[1]],
+                               pcrd->f_scal, f);
     }
     else
     {
@@ -908,6 +929,92 @@ static double get_dihedral_angle_coord(pull_coord_work_t *pcrd)
     return sign*phi;
 }
 
+static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
+                              const t_pbc *pbc, t_commrec *cr, rvec *x)
+{
+    gmx_ga2la_t *ga2la = nullptr;
+
+    pull_coord_work_t *pcrd;
+    pull_group_work_t *pgrp;
+
+    real         beta;
+    double       sumexpd = 0.0;
+    int          i, ii, start, end;
+
+    pcrd = &pull->coord[coord_ind];
+    pgrp = &pull->group[pcrd->params.group[1]];
+    beta = pull->params.mdiso_beta;
+
+    if (pgrp->nat_loc >= pgrp->nalloc_loc) {
+        pgrp->nalloc_loc = pgrp->nat_loc;
+        srenew(pgrp->mdw,     pgrp->nalloc_loc);
+        srenew(pgrp->ind_loc, pgrp->nalloc_loc);
+    }
+
+    if (cr && DOMAINDECOMP(cr))
+    {
+        ga2la = cr->dd->ga2la;
+    }
+
+    start = 0;
+    end   = md->homenr;
+
+    /* loop over all atoms in the main ref group */
+    for (i = 0; i < pgrp->params.nat; i++)
+    {
+        ii = pgrp->params.ind[i];
+        if (ga2la)
+        {
+            if (!ga2la_get_home(ga2la, pgrp->params.ind[i], &ii))
+            {
+                ii = -1;
+            }
+        }
+        if (ii >= start && ii < end)
+        {
+            rvec dx;
+            double d, expd;
+
+            // value
+            pbc_dx_aiuc(pbc, x[ii], pcrd->params.origin, dx);
+            d = sqrt(norm2(dx));
+            expd = exp(-beta * d);
+            sumexpd += expd;
+
+            // weigths
+            for (int m = 0; m < DIM; m++)
+            {
+                pgrp->mdw[ii][m] = expd / d * dx[m];
+            }
+            pgrp->ind_loc[pgrp->nat_loc] = ii;
+        }
+    }
+
+    /* finish the weights */
+    for (i = 0; i < pgrp->params.nat; i++)
+    {
+        for (int m = 0; m < DIM; m++)
+        {
+            pgrp->mdw[i][m] = pgrp->mdw[i][m] / sumexpd;
+        }
+    }
+
+    pcrd->value = -1.0 / beta * log(sumexpd);
+
+    if (debug) {
+        fprintf(debug, "MDISO value: %8.3f\n", pcrd->value);
+        fprintf(debug, "MDISO weigths:\n");
+        for (i = 0; i < pgrp->params.nat; i++)
+        {
+            for (int m = 0; m < DIM; m++)
+            {
+                fprintf(debug, "%10.3f", pgrp->mdw[i][m]);
+            }
+        fprintf(debug, "\n");
+        }
+    }
+}
+
 /* Calculates pull->coord[coord_ind].value.
  * This function also updates pull->coord[coord_ind].dr.
  */
@@ -921,6 +1028,11 @@ static void get_pull_coord_distance(struct pull_t *pull,
     pcrd = &pull->coord[coord_ind];
 
     if (pcrd->params.eGeom == epullgCYLDENS)
+    {
+        return;
+    }
+
+    if (pcrd->params.eGeom == epullgMDISO)
     {
         return;
     }
@@ -1724,6 +1836,19 @@ void apply_external_pull_coord_force(struct pull_t        *pull,
     pull->numExternalPotentialsStillToBeAppliedThisStep--;
 }
 
+static void do_pull_force(struct pull_t *pull, int coord_ind, t_mdatoms *md,
+                          t_pbc *pbc, t_commrec *cr, rvec *x)
+{
+    pull_coord_work_t *pcrd;
+
+    pcrd = &pull->coord[coord_ind];
+
+    if (pcrd->params.eGeom == epullgMDISO)
+    {
+        get_mdiso_coord(pull, coord_ind, md, pbc, cr, x);
+    }
+}
+
 /* Calculate the pull potential and scalar force for a pull coordinate */
 static void do_pull_pot_coord(struct pull_t *pull, int coord_ind, t_pbc *pbc,
                               double t, real lambda,
@@ -1776,6 +1901,8 @@ real pull_potential(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
             {
                 continue;
             }
+
+            do_pull_force(pull, c, md, pbc, cr, x);
 
             do_pull_pot_coord(pull, c, pbc, t, lambda,
                               &V,
@@ -2236,6 +2363,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
             case epullgCYLDENS:
                 copy_rvec_to_dvec(pull_params->coord[c].vec, pcrd->vec);
                 break;
+            case epullgMDISO:
+                break;
             default:
                 /* We allow reading of newer tpx files with new pull geometries,
                  * but with the same tpx format, with old code. A new geometry
@@ -2258,7 +2387,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
                 pcrd->params.eGeom == epullgANGLE ||
                 pcrd->params.eGeom == epullgDIHEDRAL ||
                 pcrd->params.eGeom == epullgANGLEAXIS ||
-                pcrd->params.eGeom == epullgCYLDENS)
+                pcrd->params.eGeom == epullgCYLDENS ||
+                pcrd->params.eGeom == epullgMDISO)
             {
                 gmx_fatal(FARGS, "Pulling of type %s can not be combined with geometry %s. Consider using pull type %s.",
                           epull_names[pcrd->params.eType],

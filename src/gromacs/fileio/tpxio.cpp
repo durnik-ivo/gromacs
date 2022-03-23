@@ -119,6 +119,7 @@ enum tpxv {
     tpxv_GenericParamsForElectricField,                      /**< Introduced KeyValueTree and moved electric field parameters */
     tpxv_AcceleratedWeightHistogram,                         /**< sampling with accelerated weight histogram method (AWH) */
     tpxv_PullCylinderDensity,
+    tpxv_PullMDISO,
     tpxv_Count                                               /**< the total number of tpxv versions */
 };
 
@@ -777,6 +778,10 @@ static void do_pull(t_fileio *fio, pull_params_t *pull, gmx_bool bRead,
         gmx_fio_do_int(fio, pull->densmap_nstmin);
         gmx_fio_do_real(fio, pull->densmap_threshold);
         gmx_fio_do_real(fio, pull->densmap_hysteresis);
+    }
+    if (file_version >= tpxv_PullMDISO)
+    {
+        gmx_fio_do_real(fio, pull->mdiso_beta);
     }
     if (bRead)
     {

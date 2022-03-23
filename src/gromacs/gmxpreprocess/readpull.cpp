@@ -146,7 +146,8 @@ static void init_pull_coord(t_pull_coord *pcrd, int coord_index_for_output,
                                            pcrd->eGeom == epullgANGLE ||
                                            pcrd->eGeom == epullgANGLEAXIS ||
                                            pcrd->eGeom == epullgDIHEDRAL ||
-                                           pcrd->eGeom == epullgCYLDENS))
+                                           pcrd->eGeom == epullgCYLDENS ||
+                                           pcrd->eGeom == epullgMDISO))
     {
         gmx_fatal(FARGS, "Pulling of type %s can not be combined with geometry %s. Consider using pull type %s.",
                   epull_names[pcrd->eType],
@@ -302,6 +303,7 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     ITYPE("pull-densmap-nstmin",    pull->densmap_nstmin, 0);
     RTYPE("pull-densmap-threshold", pull->densmap_threshold, 0);
     RTYPE("pull-densmap-hysteresis", pull->densmap_hysteresis, 0);
+    RTYPE("pull-mdiso-beta", pull->mdiso_beta, 1.0);
 
     if (pull->ngroup < 1)
     {

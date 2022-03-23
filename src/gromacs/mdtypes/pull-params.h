@@ -103,6 +103,8 @@ typedef struct pull_params_t {
     real           densmap_threshold;
     real           densmap_hysteresis;
 
+    real           mdiso_beta;
+
     t_pull_group  *group;          /**< groups to pull/restrain/etc/ */
     t_pull_coord  *coord;          /**< the pull coordinates */
 } pull_params_t;
