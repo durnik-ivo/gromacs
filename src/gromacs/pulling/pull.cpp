@@ -977,6 +977,17 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
 
             // value
             pbc_dx_aiuc(pbc, x[ii], pcrd->params.origin, dx);
+
+            // remove unwanted dimensions
+            for (int m = 0; m < DIM; m++)
+            {
+                if(pcrd->params.dim[m] == 0)
+                {
+                    dx[m] = 0.0;
+                }
+                fprintf(debug, "dx%i: %f\n", m, dx[m]);
+            }
+
             d = sqrt(norm2(dx));
             expd = exp(-beta * d);
             sumexpd += expd;
