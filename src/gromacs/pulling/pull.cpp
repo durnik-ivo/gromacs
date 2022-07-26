@@ -995,7 +995,16 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
             // weigths
             for (int m = 0; m < DIM; m++)
             {
-                pgrp->mdw[ii][m] = expd / d * dx[m];
+                // Atom might overlap with the origin
+                if (d != 0.0)
+                {
+                    pgrp->mdw[ii][m] = expd / d * dx[m];
+                }
+                else
+                {
+                    pgrp->mdw[ii][m] = 0.0;
+                }
+
             }
             pgrp->ind_loc[pgrp->nat_loc] = ii;
         }
