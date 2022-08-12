@@ -1861,7 +1861,7 @@ void apply_external_pull_coord_force(struct pull_t        *pull,
     pull->numExternalPotentialsStillToBeAppliedThisStep--;
 }
 
-static void do_pull_force(struct pull_t *pull, int coord_ind, t_mdatoms *md,
+static void calc_coord_from_atoms(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                           t_pbc *pbc, t_commrec *cr, rvec *x)
 {
     pull_coord_work_t *pcrd;
@@ -1927,7 +1927,7 @@ real pull_potential(struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
                 continue;
             }
 
-            do_pull_force(pull, c, md, pbc, cr, x);
+            calc_coord_from_atoms(pull, c, md, pbc, cr, x);
 
             do_pull_pot_coord(pull, c, pbc, t, lambda,
                               &V,
