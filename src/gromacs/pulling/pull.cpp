@@ -2661,7 +2661,11 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     }
 
     /* If we use cylinder or mdiso coordinates, do some initialising for them */
-    if (pull->bCylinder || pull->bMinDist)
+    if (pull->bMinDist)
+    {
+        snew(pull->dyna, pull->ncoord);
+    }
+    if (pull->bCylinder)
     {
         snew(pull->dyna, pull->ncoord);
 
