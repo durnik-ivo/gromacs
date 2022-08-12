@@ -948,7 +948,8 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
 
     pdyna->nat_loc = 0;
 
-    if (pdyna->nat_loc >= pdyna->nalloc_loc) {
+    if (pdyna->nat_loc >= pdyna->nalloc_loc)
+    {
         pdyna->nalloc_loc = pgrp->nat_loc;
         srenew(pdyna->mdw,     pdyna->nalloc_loc);
         srenew(pdyna->ind_loc, pdyna->nalloc_loc);
@@ -988,7 +989,6 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                 {
                     dx[m] = 0.0;
                 }
-                fprintf(debug, "dx%i: %f\n", m, dx[m]);
             }
 
             d = sqrt(norm2(dx));
@@ -1025,7 +1025,8 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
 
     pcrd->value = -1.0 / beta * log(sumexpd);
 
-    if (debug) {
+    if (debug)
+    {
         fprintf(debug, "MDISO value: %8.3f\n", pcrd->value);
         fprintf(debug, "MDISO weigths:\n");
         for (i = 0; i < pgrp->params.nat; i++)
