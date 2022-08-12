@@ -597,8 +597,7 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
     }
     else if (pcrd->params.eGeom == epullgMDISO)
     {
-        apply_forces_mdiso_grp(&pull->group[pcrd->params.group[1]],
-                               pcrd->f_scal, f);
+        apply_forces_mdiso_grp(&pull->dyna[coord], pcrd->f_scal, f);
     }
     else
     {
@@ -935,7 +934,7 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     gmx_ga2la_t *ga2la = nullptr;
 
     pull_coord_work_t *pcrd;
-    pull_group_work_t *pgrp;
+    pull_group_work_t *pgrp, *pdyna;
 
     real         beta;
     double       sumexpd = 0.0;
@@ -943,12 +942,16 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
 
     pcrd = &pull->coord[coord_ind];
     pgrp = &pull->group[pcrd->params.group[1]];
+    pdyna = &pull->dyna[coord_ind];
+
     beta = pull->params.mdiso_beta;
 
-    if (pgrp->nat_loc >= pgrp->nalloc_loc) {
-        pgrp->nalloc_loc = pgrp->nat_loc;
-        srenew(pgrp->mdw,     pgrp->nalloc_loc);
-        srenew(pgrp->ind_loc, pgrp->nalloc_loc);
+    pdyna->nat_loc = 0;
+
+    if (pdyna->nat_loc >= pdyna->nalloc_loc) {
+        pdyna->nalloc_loc = pgrp->nat_loc;
+        srenew(pdyna->mdw,     pdyna->nalloc_loc);
+        srenew(pdyna->ind_loc, pdyna->nalloc_loc);
     }
 
     if (cr && DOMAINDECOMP(cr))
@@ -998,15 +1001,16 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                 // Atom might overlap with the origin
                 if (d != 0.0)
                 {
-                    pgrp->mdw[ii][m] = expd / d * dx[m];
+                    pdyna->mdw[ii][m] = expd / d * dx[m];
                 }
                 else
                 {
-                    pgrp->mdw[ii][m] = 0.0;
+                    pdyna->mdw[ii][m] = 0.0;
                 }
 
             }
-            pgrp->ind_loc[pgrp->nat_loc] = ii;
+            pdyna->ind_loc[pdyna->nat_loc] = ii;
+            pdyna->nat_loc++;
         }
     }
 
@@ -1015,7 +1019,7 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     {
         for (int m = 0; m < DIM; m++)
         {
-            pgrp->mdw[i][m] = pgrp->mdw[i][m] / sumexpd;
+            pdyna->mdw[i][m] = pdyna->mdw[i][m] / sumexpd;
         }
     }
 
@@ -1028,7 +1032,7 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
         {
             for (int m = 0; m < DIM; m++)
             {
-                fprintf(debug, "%10.3f", pgrp->mdw[i][m]);
+                fprintf(debug, "%10.3f", pdyna->mdw[i][m]);
             }
         fprintf(debug, "\n");
         }
@@ -2328,6 +2332,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     pull->bConstraint = FALSE;
     pull->bCylinder   = FALSE;
     pull->bAngle      = FALSE;
+    pull->bMinDist    = FALSE;
 
     pull->bDensMap    = FALSE;
 
@@ -2431,6 +2436,11 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
         {
             pull->bAngle = TRUE;
         }
+        else if (pcrd->params.eGeom == epullgMDISO)
+        {
+            pull->bMinDist = TRUE;
+        }
+
 
         /* We only need to calculate the plain COM of a group
          * when it is not only used as a cylinder group.
@@ -2649,8 +2659,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
         }
     }
 
-    /* If we use cylinder coordinates, do some initialising for them */
-    if (pull->bCylinder)
+    /* If we use cylinder or mdiso coordinates, do some initialising for them */
+    if (pull->bCylinder || pull->bMinDist)
     {
         snew(pull->dyna, pull->ncoord);
 
@@ -2804,7 +2814,8 @@ static void destroy_pull(struct pull_t *pull)
     }
     for (i = 0; i < pull->ncoord; i++)
     {
-        if (pull->coord[i].params.eGeom == epullgCYL)
+        if (pull->coord[i].params.eGeom == epullgCYL ||
+            pull->coord[i].params.eGeom == epullgMDISO)
         {
             destroy_pull_group(&(pull->dyna[i]));
         }
