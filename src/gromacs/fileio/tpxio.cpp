@@ -120,6 +120,7 @@ enum tpxv {
     tpxv_AcceleratedWeightHistogram,                         /**< sampling with accelerated weight histogram method (AWH) */
     tpxv_PullCylinderDensity,
     tpxv_PullMDISO,
+    tpxv_PullCylinderDensityMDISO,
     tpxv_Count                                               /**< the total number of tpxv versions */
 };
 

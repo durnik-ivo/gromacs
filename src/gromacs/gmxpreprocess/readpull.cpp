@@ -147,7 +147,8 @@ static void init_pull_coord(t_pull_coord *pcrd, int coord_index_for_output,
                                            pcrd->eGeom == epullgANGLEAXIS ||
                                            pcrd->eGeom == epullgDIHEDRAL ||
                                            pcrd->eGeom == epullgCYLDENS ||
-                                           pcrd->eGeom == epullgMDISO))
+                                           pcrd->eGeom == epullgMDISO ||
+                                           pcrd->eGeom == epullgCYLDENSMDISO))
     {
         gmx_fatal(FARGS, "Pulling of type %s can not be combined with geometry %s. Consider using pull type %s.",
                   epull_names[pcrd->eType],
@@ -230,7 +231,7 @@ static void init_pull_coord(t_pull_coord *pcrd, int coord_index_for_output,
     string2dvec(vec_buf, vec);
 
     if (pcrd->eGeom == epullgDIR || pcrd->eGeom == epullgCYL || pcrd->eGeom == epullgDIRPBC || pcrd->eGeom == epullgANGLEAXIS ||
-        pcrd->eGeom == epullgCYLDENS)
+        pcrd->eGeom == epullgCYLDENS || pcrd->eGeom == epullgCYLDENSMDISO)
     {
         if (dnorm2(vec) == 0)
         {

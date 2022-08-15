@@ -4347,7 +4347,8 @@ void triple_check(const char *mdparin, t_inputrec *ir, gmx_mtop_t *sys,
             if ((ir->pull->coord[i].group[0] == 0 ||
                  ir->pull->coord[i].group[1] == 0) &&
                  ir->pull->coord[i].eGeom != epullgCYLDENS &&
-                 ir->pull->coord[i].eGeom != epullgMDISO)
+                 ir->pull->coord[i].eGeom != epullgMDISO &&
+                 ir->pull->coord[i].eGeom != epullgCYLDENSMDISO)
             {
                 absolute_reference(ir, sys, FALSE, AbsRef);
                 for (m = 0; m < DIM; m++)

@@ -181,6 +181,7 @@ struct pull_t
     gmx_bool           bDensMap;     /* Are we doing density map? */
 
     gmx_bool           bMinDist;     /* Are there minimal distance coordinates? */
+    gmx_bool           bCylinderMinDist; /* Are there cylinder minimal distance coordinates? */
 
     int                ePBC;         /* the boundary conditions */
     int                npbcdim;      /* do pbc in dims 0 <= dim < npbcdim */

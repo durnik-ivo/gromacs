@@ -1112,6 +1112,11 @@ static void get_pull_coord_distance(struct pull_t *pull,
         return;
     }
 
+    if (pcrd->params.eGeom == epullgCYLDENSMDISO)
+    {
+        return;
+    }
+
     get_pull_coord_dr(pull, coord_ind, pbc);
 
     switch (pcrd->params.eGeom)
@@ -2384,6 +2389,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     pull->bCylinder   = FALSE;
     pull->bAngle      = FALSE;
     pull->bMinDist    = FALSE;
+    pull->bCylinderMinDist = FALSE;
 
     pull->bDensMap    = FALSE;
 
@@ -2437,6 +2443,7 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
             case epullgCYL:
             case epullgANGLEAXIS:
             case epullgCYLDENS:
+            case epullgCYLDENSMDISO:
                 copy_rvec_to_dvec(pull_params->coord[c].vec, pcrd->vec);
                 break;
             case epullgMDISO:
@@ -2464,7 +2471,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
                 pcrd->params.eGeom == epullgDIHEDRAL ||
                 pcrd->params.eGeom == epullgANGLEAXIS ||
                 pcrd->params.eGeom == epullgCYLDENS ||
-                pcrd->params.eGeom == epullgMDISO)
+                pcrd->params.eGeom == epullgMDISO ||
+                pcrd->params.eGeom == epullgCYLDENSMDISO)
             {
                 gmx_fatal(FARGS, "Pulling of type %s can not be combined with geometry %s. Consider using pull type %s.",
                           epull_names[pcrd->params.eType],
@@ -2490,6 +2498,10 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
         else if (pcrd->params.eGeom == epullgMDISO)
         {
             pull->bMinDist = TRUE;
+        }
+        else if (pcrd->params.eGeom == epullgCYLDENSMDISO)
+        {
+            pull->bCylinderMinDist = TRUE;
         }
 
 
