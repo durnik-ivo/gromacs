@@ -2746,6 +2746,10 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
             }
         }
     }
+    if (pull->bCylinderMinDist)
+    {
+        snew(pull->dyna, pull->ncoord+1);
+    }
 
     /* If we use densmap, do some initialising */
     if (pull->params.densmap_group != 0)
@@ -2885,6 +2889,11 @@ static void destroy_pull(struct pull_t *pull)
             pull->coord[i].params.eGeom == epullgMDISO)
         {
             destroy_pull_group(&(pull->dyna[i]));
+        }
+        if (pull->coord[i].params.eGeom == epullgCYLDENSMDISO)
+        {
+            destroy_pull_group(&(pull->dyna[i]));
+            destroy_pull_group(&(pull->dyna[i+1]));
         }
     }
     sfree(pull->group);
