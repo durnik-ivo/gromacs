@@ -886,6 +886,14 @@ static void sum_com_part_cosweight(const pull_group_work_t *pgrp,
     sum_com->sum_smp = sum_smp;
 }
 
+/* Temporary initial solution */
+void get_mdiso_coord(struct pull_t *pull,
+                     int coord_ind,
+                     t_mdatoms *md,
+                     const t_pbc *pbc,
+                     t_commrec *cr,
+                     rvec *x);
+
 /* calculates center of mass of selection index from all coordinates x */
 void pull_calc_coms(t_commrec *cr,
                     struct pull_t *pull, t_mdatoms *md, t_pbc *pbc,
@@ -1172,6 +1180,35 @@ void pull_calc_coms(t_commrec *cr,
         }
 
         make_cyldens_grps(cr, pull, md, pbc, t, x);
+    }
+
+    if (pull->bCylinderMinDist)
+    {
+        densmap_update(cr, pull, md, pbc, x, &pull->group[pull->params.densmap_group]);
+
+        rvec x_min;
+        if (do_per_step(step, pull->params.densmap_nstmin) &&
+            densmap_find_minimum(pull, pbc, x_min))
+        {
+            for (int i = 0; i < pull->ncoord; i++)
+            {
+                for (int j = 0; j < DIM; j++) {
+                    pull->coord[i].params.origin[j] = x_min[j];
+                }
+            }
+        }
+
+        make_cyldens_grps(cr, pull, md, pbc, t, x);
+
+        for (int c = 0; c < pull->ncoord; c++)
+        {
+            if (pull->coord[c].params.eGeom == epullgCYLDENSMDISO)
+            {
+                get_mdiso_coord(pull, c, md, pbc, cr, x);
+            }
+        }
+
+        //mix
     }
 }
 

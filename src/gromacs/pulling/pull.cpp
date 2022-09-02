@@ -599,6 +599,12 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
     {
         apply_forces_mdiso_grp(&pull->dyna[coord], pcrd->f_scal, f);
     }
+    else if (pcrd->params.eGeom == epullgCYLDENSMDISO)
+    {
+        apply_forces_cyldens_grp(&pull->dyna[coord], pcrd->f_scal,
+                                 f, pull->nthreads);
+        apply_forces_mdiso_grp(&pull->dyna[coord + 1], pcrd->f_scal, f);
+    }
     else
     {
         if (pcrd->params.eGeom == epullgDIRRELATIVE)
@@ -970,6 +976,16 @@ static void pull_reduce_double(t_commrec   *cr,
 }
 
 static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
+
+/* Temporary initial solution */
+void get_mdiso_coord(struct pull_t *pull,
+                     int coord_ind,
+                     t_mdatoms *md,
+                     const t_pbc *pbc,
+                     t_commrec *cr,
+                     rvec *x);
+
+void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                               const t_pbc *pbc, t_commrec *cr, rvec *x)
 {
     pull_comm_t    *comm;
@@ -986,7 +1002,15 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
 
     pcrd = &pull->coord[coord_ind];
     pgrp = &pull->group[pcrd->params.group[1]];
-    pdyna = &pull->dyna[coord_ind];
+
+    if (pull->bMinDist) {
+        pdyna = &pull->dyna[coord_ind];
+    }
+    else if (pull->bCylinderMinDist) {
+        pdyna = &pull->dyna[coord_ind + 1];
+    } else {
+        gmx_fatal(FARGS, "Unknown use of mdiso!\n");
+    }
 
     beta = pull->params.mdiso_beta;
 
@@ -2749,6 +2773,22 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     if (pull->bCylinderMinDist)
     {
         snew(pull->dyna, pull->ncoord+1);
+        pull->densmap.grid = nullptr;
+
+        for (c = 0; c < pull->ncoord; c++)
+        {
+            const pull_coord_work_t *pcrd;
+
+            pcrd = &pull->coord[c];
+
+            if (pcrd->params.eGeom == epullgCYL)
+            {
+                if (pull->group[pcrd->params.group[0]].params.nat == 0)
+                {
+                    gmx_fatal(FARGS, "A cylinder pull group is not supported when using absolute reference!\n");
+                }
+            }
+        }
     }
 
     /* If we use densmap, do some initialising */
@@ -2893,7 +2933,7 @@ static void destroy_pull(struct pull_t *pull)
         if (pull->coord[i].params.eGeom == epullgCYLDENSMDISO)
         {
             destroy_pull_group(&(pull->dyna[i]));
-            destroy_pull_group(&(pull->dyna[i+1]));
+            //destroy_pull_group(&(pull->dyna[i+1]));
         }
     }
     sfree(pull->group);
