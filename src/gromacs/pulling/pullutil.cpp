@@ -648,7 +648,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         sumw = 0;
 
-        if (pcrd->params.eGeom == epullgCYLDENS)
+        if (pcrd->params.eGeom == epullgCYLDENS || pcrd->params.eGeom == epullgCYLDENSMDISO)
         {
             pull_group_work_t *pgrp, *pdyna;
 
@@ -735,7 +735,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         pcrd  = &pull->coord[c];
 
-        if (pcrd->params.eGeom == epullgCYLDENS)
+        if (pcrd->params.eGeom == epullgCYLDENS || pcrd->params.eGeom == epullgCYLDENSMDISO)
         {
             pcrd->value = comm->dbuf_cyldens[c];
 
