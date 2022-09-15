@@ -928,9 +928,51 @@ static double get_dihedral_angle_coord(pull_coord_work_t *pcrd)
     return sign*phi;
 }
 
+/* temporary solution */
+static void pull_reduce_double(t_commrec   *cr,
+                               pull_comm_t *comm,
+                               int          n,
+                               double      *data)
+{
+    if (cr != nullptr && PAR(cr))
+    {
+        if (comm->bParticipateAll)
+        {
+            /* Sum the contributions over all DD ranks */
+            gmx_sumd(n, data, cr);
+        }
+        else
+        {
+#if GMX_MPI
+#if MPI_IN_PLACE_EXISTS
+            MPI_Allreduce(MPI_IN_PLACE, data, n, MPI_DOUBLE, MPI_SUM,
+                          comm->mpi_comm_com);
+#else
+            double *buf;
+
+            snew(buf, n);
+
+            MPI_Allreduce(data, buf, n, MPI_DOUBLE, MPI_SUM,
+                          comm->mpi_comm_com);
+
+            /* Copy the result from the buffer to the input/output data */
+            for (int i = 0; i < n; i++)
+            {
+                data[i] = buf[i];
+            }
+            sfree(buf);
+#endif
+#else
+            gmx_incons("comm->bParticipateAll=FALSE without GMX_MPI");
+#endif
+        }
+    }
+}
+
 static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                               const t_pbc *pbc, t_commrec *cr, rvec *x)
 {
+    pull_comm_t    *comm;
     gmx_ga2la_t *ga2la = nullptr;
 
     pull_coord_work_t *pcrd;
@@ -940,6 +982,8 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     double       sumexpd = 0.0;
     int          i, ii, start, end;
 
+    comm = &pull->comm;
+
     pcrd = &pull->coord[coord_ind];
     pgrp = &pull->group[pcrd->params.group[1]];
     pdyna = &pull->dyna[coord_ind];
@@ -947,13 +991,6 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     beta = pull->params.mdiso_beta;
 
     pdyna->nat_loc = 0;
-
-    if (pdyna->nat_loc >= pdyna->nalloc_loc)
-    {
-        pdyna->nalloc_loc = pgrp->nat_loc;
-        srenew(pdyna->mdw,     pdyna->nalloc_loc);
-        srenew(pdyna->ind_loc, pdyna->nalloc_loc);
-    }
 
     if (cr && DOMAINDECOMP(cr))
     {
@@ -979,6 +1016,13 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
             rvec dx;
             double d, expd;
 
+            if (pdyna->nat_loc >= pdyna->nalloc_loc)
+            {
+                pdyna->nalloc_loc = over_alloc_large(pdyna->nat_loc+1);
+                srenew(pdyna->mdw,     pdyna->nalloc_loc);
+                srenew(pdyna->ind_loc, pdyna->nalloc_loc);
+            }
+
             // value
             pbc_dx_aiuc(pbc, x[ii], pcrd->params.origin, dx);
 
@@ -1001,11 +1045,11 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                 // Atom might overlap with the origin
                 if (d != 0.0)
                 {
-                    pdyna->mdw[i][m] = expd / d * dx[m];
+                    pdyna->mdw[pdyna->nat_loc][m] = expd / d * dx[m];
                 }
                 else
                 {
-                    pdyna->mdw[i][m] = 0.0;
+                    pdyna->mdw[pdyna->nat_loc][m] = 0.0;
                 }
 
             }
@@ -1014,8 +1058,14 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
         }
     }
 
+    if (cr != nullptr && PAR(cr))
+    {
+        /* Sum the contributions over the ranks */
+        pull_reduce_double(cr, comm, 1, &sumexpd);
+    }
+
     /* finish the weights */
-    for (i = 0; i < pgrp->params.nat; i++)
+    for (i = 0; i < pdyna->nat_loc; i++)
     {
         for (int m = 0; m < DIM; m++)
         {
@@ -1029,7 +1079,7 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     {
         fprintf(debug, "MDISO value: %8.3f\n", pcrd->value);
         fprintf(debug, "MDISO weigths:\n");
-        for (i = 0; i < pgrp->params.nat; i++)
+        for (i = 0; i < pdyna->nat_loc; i++)
         {
             for (int m = 0; m < DIM; m++)
             {
