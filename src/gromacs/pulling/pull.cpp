@@ -1001,11 +1001,11 @@ static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
                 // Atom might overlap with the origin
                 if (d != 0.0)
                 {
-                    pdyna->mdw[ii][m] = expd / d * dx[m];
+                    pdyna->mdw[i][m] = expd / d * dx[m];
                 }
                 else
                 {
-                    pdyna->mdw[ii][m] = 0.0;
+                    pdyna->mdw[i][m] = 0.0;
                 }
 
             }
