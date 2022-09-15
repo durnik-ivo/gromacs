@@ -2182,6 +2182,8 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     pull->bCylinder   = FALSE;
     pull->bAngle      = FALSE;
 
+    pull->bDensMap    = FALSE;
+
     for (g = 0; g < pull->ngroup; g++)
     {
         pull_group_work_t *pgrp;
@@ -2501,7 +2503,6 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
     if (pull->bCylinder)
     {
         snew(pull->dyna, pull->ncoord);
-        pull->densmap.grid = nullptr;
 
         for (c = 0; c < pull->ncoord; c++)
         {
@@ -2517,6 +2518,13 @@ init_pull(FILE *fplog, const pull_params_t *pull_params, const t_inputrec *ir,
                 }
             }
         }
+    }
+
+    /* If we use densmap, do some initialising */
+    if (pull->params.densmap_group != 0)
+    {
+        pull->densmap.grid = nullptr;
+        pull->bDensMap = TRUE;
     }
 
     /* The gmx_omp_nthreads module might not be initialized here, so max(1,) */

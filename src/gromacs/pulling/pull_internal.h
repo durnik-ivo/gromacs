@@ -178,6 +178,8 @@ struct pull_t
     gmx_bool           bPotential;   /* Are there coordinates with potential? */
     gmx_bool           bConstraint;  /* Are there constrained coordinates? */
     gmx_bool           bAngle;       /* Are there angle geometry coordinates? */
+    gmx_bool           bDensMap;     /* Are we doing density map? */
+    gmx_bool           bMinDist;     /* Are there minimal distance coordinates? */
 
     int                ePBC;         /* the boundary conditions */
     int                npbcdim;      /* do pbc in dims 0 <= dim < npbcdim */
