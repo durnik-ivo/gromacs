@@ -975,8 +975,6 @@ static void pull_reduce_double(t_commrec   *cr,
     }
 }
 
-static void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
-
 /* Temporary initial solution */
 void get_mdiso_coord(struct pull_t *pull,
                      int coord_ind,
