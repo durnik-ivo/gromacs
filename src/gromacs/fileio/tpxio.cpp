@@ -784,6 +784,11 @@ static void do_pull(t_fileio *fio, pull_params_t *pull, gmx_bool bRead,
     {
         gmx_fio_do_real(fio, pull->mdiso_beta);
     }
+    if (file_version >= tpxv_PullCylinderDensityMDISO)
+    {
+        gmx_fio_do_real(fio, pull->alpha1);
+        gmx_fio_do_real(fio, pull->alpha2);
+    }
     if (bRead)
     {
         snew(pull->group, pull->ngroup);

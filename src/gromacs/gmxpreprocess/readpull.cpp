@@ -305,6 +305,8 @@ char **read_pullparams(int *ninp_p, t_inpfile **inp_p,
     RTYPE("pull-densmap-threshold", pull->densmap_threshold, 0);
     RTYPE("pull-densmap-hysteresis", pull->densmap_hysteresis, 0);
     RTYPE("pull-mdiso-beta", pull->mdiso_beta, 1.0);
+    RTYPE("pull-mix-alpha1", pull->alpha1, 1.0);
+    RTYPE("pull-mix-alpha2", pull->alpha2, 1.0);
 
     if (pull->ngroup < 1)
     {
