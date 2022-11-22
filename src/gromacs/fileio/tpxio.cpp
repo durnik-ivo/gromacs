@@ -773,6 +773,7 @@ static void do_pull(t_fileio *fio, pull_params_t *pull, gmx_bool bRead,
     gmx_fio_do_int(fio, pull->nstfout);
     if (file_version >= tpxv_PullCylinderDensity)
     {
+        gmx_fio_do_real(fio, pull->cyldens_norm);
         gmx_fio_do_int(fio, pull->densmap_group);
         gmx_fio_do_real(fio, pull->densmap_binwidth);
         gmx_fio_do_real(fio, pull->densmap_mixfactor);

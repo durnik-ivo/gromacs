@@ -617,7 +617,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 {
     int             c, i, ii, m, start, end;
     rvec            dx, dir;
-    double          inv_cyl_r2;
+    double          inv_cyl_r2, cyldens_norm;
     pull_comm_t    *comm;
     gmx_ga2la_t    *ga2la = nullptr;
 
@@ -637,6 +637,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
     end   = md->homenr;
 
     inv_cyl_r2 = 1.0/gmx::square(pull->params.cylinder_r);
+    cyldens_norm = pull->params.cyldens_norm;
 
     /* loop over all groups to make a reference group for each*/
     for (c = 0; c < pull->ncoord; c++)
@@ -737,7 +738,7 @@ static void make_cyldens_grps(t_commrec *cr, struct pull_t *pull, t_mdatoms *md,
 
         if (pcrd->params.eGeom == epullgCYLDENS || pcrd->params.eGeom == epullgCYLDENSMDISO)
         {
-            pcrd->value = comm->dbuf_cyldens[c];
+            pcrd->value = comm->dbuf_cyldens[c] / cyldens_norm;
 
             if (debug)
             {

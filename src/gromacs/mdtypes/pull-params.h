@@ -96,6 +96,8 @@ typedef struct pull_params_t {
     int            nstxout;        /**< Output interval for pull x */
     int            nstfout;        /**< Output interval for pull f */
 
+    real           cyldens_norm;   /**< Normalization constant for cyldens - equilibrium particle density */
+
     int            densmap_group;
     real           densmap_binwidth;
     real           densmap_mixfactor;
