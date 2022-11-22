@@ -1198,7 +1198,10 @@ void pull_calc_coms(t_commrec *cr,
             }
         }
 
+        double cyldens, mdiso, alpha1, alpha2, dcyldens, dmdiso, denom;
+
         make_cyldens_grps(cr, pull, md, pbc, t, x);
+        cyldens = pull->coord[0].value;
 
         for (int c = 0; c < pull->ncoord; c++)
         {
@@ -1207,8 +1210,33 @@ void pull_calc_coms(t_commrec *cr,
                 get_mdiso_coord(pull, c, md, pbc, cr, x);
             }
         }
+        mdiso = pull->coord[0].value;
 
-        //mix
+        /* mix cyldens and mdiso */
+        alpha1 = pull->params.alpha1;
+        alpha2 = pull->params.alpha2;
+
+        // values
+        pull->coord[0].value =  cyldens / (1 + exp( alpha1 * mdiso   - alpha2));
+        pull->coord[0].value += mdiso   / (1 + exp(-alpha1 * cyldens - alpha2));
+
+        // derivatives
+        dcyldens = 1 / (1 + exp(alpha1*mdiso - alpha2));
+
+        denom = (1 + exp( alpha1 * mdiso - alpha2));
+        dmdiso = - alpha1 * cyldens * exp(alpha1 * mdiso - alpha2) / (denom * denom);
+        denom = (1 + exp(-alpha1 * mdiso + alpha2));
+        dmdiso += 1 / denom;
+        dmdiso += (alpha1 * mdiso * exp(-alpha1 * mdiso + alpha2)) / (denom * denom);
+
+        pull->dyna[0].wscale = dcyldens;
+        pull->dyna[1].wscale = dmdiso;
+
+        if (debug) {
+            fprintf(debug, "dcyldens: %f\n", dcyldens);
+            fprintf(debug, "dmdiso:   %f\n", dmdiso);
+            fprintf(debug, "mix:      %f\n", pull->coord[0].value);
+        }
     }
 }
 

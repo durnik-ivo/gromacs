@@ -601,9 +601,10 @@ static void apply_forces_coord(struct pull_t * pull, int coord,
     }
     else if (pcrd->params.eGeom == epullgCYLDENSMDISO)
     {
-        apply_forces_cyldens_grp(&pull->dyna[coord], pcrd->f_scal,
+        apply_forces_cyldens_grp(&pull->dyna[coord], pcrd->f_scal * pull->dyna[coord].wscale,
                                  f, pull->nthreads);
-        apply_forces_mdiso_grp(&pull->dyna[coord + 1], pcrd->f_scal, f);
+        apply_forces_mdiso_grp(&pull->dyna[coord + 1], pcrd->f_scal * pull->dyna[coord + 1].wscale,
+                               f);
     }
     else
     {
@@ -1006,6 +1007,10 @@ void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     }
     else if (pull->bCylinderMinDist) {
         pdyna = &pull->dyna[coord_ind + 1];
+
+        pcrd->params.dim[0] = 1;
+        pcrd->params.dim[1] = 1;
+        pcrd->params.dim[2] = 0;
     } else {
         gmx_fatal(FARGS, "Unknown use of mdiso!\n");
     }
