@@ -1105,15 +1105,6 @@ void get_mdiso_coord(struct pull_t *pull, int coord_ind, t_mdatoms *md,
     if (debug)
     {
         fprintf(debug, "MDISO value: %8.3f\n", pcrd->value);
-        fprintf(debug, "MDISO weigths:\n");
-        for (i = 0; i < pdyna->nat_loc; i++)
-        {
-            for (int m = 0; m < DIM; m++)
-            {
-                fprintf(debug, "%10.3f", pdyna->mdw[i][m]);
-            }
-        fprintf(debug, "\n");
-        }
     }
 }
 
